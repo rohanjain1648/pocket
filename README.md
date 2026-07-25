@@ -9,12 +9,19 @@ Showrunner is two connected products in one Next.js app:
    analyzed, consistency-checked, voice-cast, fully-rendered audio drama episode out, with a
    suite of AI agents assisting every step from first draft to marketing.
 2. **A listener-facing discovery app** ("Listener Hub") — mood-based search, a scheduling
-   concierge, curated festivals, cross-media recommendations, and "why you'll love this"
-   explanations, all backed by real listening-session data rather than seeded placeholders.
+   concierge, curated festivals, cross-media recommendations, biometric audiobooks, and AI audio RPG games.
 
-Everything below reflects the actual code in this repo, not aspirational pitch copy — where a
-feature is a mock or needs external infrastructure not included here, that's called out
-explicitly in [Experimental / standalone features](#-experimental--standalone-features).
+---
+
+## ⚡ Quick Start — Running the Full Platform
+
+To experience the complete Showrunner platform with all features (Studio, Listener Hub, Pulse & Page, and Audioverse RPG), open **3 separate terminal windows** and run:
+
+| Component | Terminal Command | Local Address |
+| :--- | :--- | :--- |
+| **1. Showrunner Platform** (Next.js) | `npm run dev` | [http://localhost:3000](http://localhost:3000) |
+| **2. Pulse & Page** (FastAPI) | `cd pulse-and-page-main` <br> `uvicorn app:app --reload` | [http://localhost:8000](http://localhost:8000) |
+| **3. Audioverse RPG** (Socket Server) | `cd audioverse-main/server` <br> `node index.js` | [http://localhost:3001](http://localhost:3001) |
 
 ---
 
@@ -49,209 +56,94 @@ specialist agents, orchestrated by `analyzeEpisode()` ([src/lib/agents/orchestra
 ### Pillar 4 — Generate (production pipeline)
 - **One-Click Pilot Factory** ([PilotFactory.tsx](src/components/PilotFactory.tsx)) — paste source text, one click runs adapt → build-bible → analyze → render-audio end to end.
 - **Adapter Agent** ([src/lib/agents/adapter.ts](src/lib/agents/adapter.ts)) — converts arbitrary source material (novel excerpt, article, story idea) into a cliffhanger-structured, beat-chunked episodic script.
-- **Content Safety Guardrails** ([src/lib/safety/moderation.ts](src/lib/safety/moderation.ts)) — every `POST /api/series/adapt` call is screened before generation: a deterministic keyword gate (primary, always-on) blocks self-harm/suicide, sexually explicit, and dangerous-content themes on sight regardless of narrative framing, backed by an LLM classifier pass for phrasings the keyword list misses. Unlike the rest of the app (which fails *open* — see below), this gate fails *closed*: if both LLM providers are unreachable, content is refused rather than waved through. Blocked requests surface as a dedicated shield-icon refusal card in `PilotFactory.tsx`, not a generic error.
-- **Voice Casting Studio** ([VoiceCastingBoard.tsx](src/components/VoiceCastingBoard.tsx), `/series/[id]/casting`) — assigns Groq or ElevenLabs voices to Story Bible characters (`Character.preferredVoice`, encoded via [src/lib/voice-pref.ts](src/lib/voice-pref.ts)).
-- **Voice-Director** ([src/lib/agents/voice-director.ts](src/lib/agents/voice-director.ts)) — suggests delivery styling per beat/speaker and renders short preview clips.
-- **TTS Director** ([src/lib/agents/tts-director.ts](src/lib/agents/tts-director.ts)) — casts and renders a full episode's audio, merging per-beat clips (WAV concatenation for Groq Orpheus via [src/lib/audio/wav.ts](src/lib/audio/wav.ts), direct MP3 concatenation for ElevenLabs).
-- **AI Producer** ([src/lib/agents/marketing-director.ts](src/lib/agents/marketing-director.ts), [MarketingDesk.tsx](src/components/studio/MarketingDesk.tsx)) — social hooks, hashtags, best-clip pick (objectively computed from cliffhanger scores), thumbnail mood, target audience.
+- **Content Safety Guardrails** ([src/lib/safety/moderation.ts](src/lib/safety/moderation.ts)) — every `POST /api/series/adapt` call is screened before generation.
+- **Voice Casting Studio** ([VoiceCastingBoard.tsx](src/components/VoiceCastingBoard.tsx), `/series/[id]/casting`) — assigns Groq or ElevenLabs voices to Story Bible characters.
+- **TTS Director** ([src/lib/agents/tts-director.ts](src/lib/agents/tts-director.ts)) — casts and renders a full episode's audio (WAV concatenation for Groq Orpheus via [src/lib/audio/wav.ts](src/lib/audio/wav.ts), direct MP3 concatenation for ElevenLabs).
 
-### Pillar 5 — Discover (Listener Hub, `/listen`)
-- **Mood-First Search** ([src/lib/agents/mood-profiler.ts](src/lib/agents/mood-profiler.ts)) — free-text mood query ("rainy Sunday after heartbreak") matched against OpenAI-embedded episode mood profiles by cosine similarity.
-- **AI Entertainment Concierge** ([src/lib/agents/concierge.ts](src/lib/agents/concierge.ts)) — given a mood + hours available, schedules a time-slotted weekend listening plan from real, rendered episodes.
-- **AI Curated Festivals** ([src/lib/agents/festival-curator.ts](src/lib/agents/festival-curator.ts)) — generates a themed multi-episode lineup with an emotional arc, persisted as a `Festival` + `FestivalSlot`s, optional AI cover art via `gpt-image-1`.
-- **Cross-Media Discovery** ([src/lib/agents/cross-media.ts](src/lib/agents/cross-media.ts)) — LLM-proposed related books/films/music/podcasts, verified/enriched against the real Open Library API (`verified: true` badge) rather than left as unchecked LLM output.
-- **"Explain Why I'll Love This"** ([src/lib/agents/taste-explainer.ts](src/lib/agents/taste-explainer.ts)) — a personalized recommendation rationale generated from the listener's actual recent `ListeningSession` history, logged to `RecommendationLog`.
-- All of the above run against **real playback data** — `ListeningSession`/`Listener` are genuinely recorded from the [ListenerAudioPlayer.tsx](src/components/listen/ListenerAudioPlayer.tsx) (progress reported every 5s), not seeded fixtures — though listener identity is hardcoded to one demo user for the hackathon.
+### Pillar 5 — Extended Listener Experiences (`/pulse-and-page` & `/audioverse`)
+- **Pulse & Page (`/pulse-and-page`)** — Biometric audiobook listening engine. Maps wearable signals (HR, HRV, SpO2, sleep) into 5 emotional states with adaptive ElevenLabs/Groq TTS tone modulation and curated emotion book folders.
+- **Audioverse RPG (`/audioverse`)** — Interactive voice-driven Hinglish audio RPG game powered by a live AI Dungeon Master. Features room creation, real-time action scoring (+10 EPIC, +5 SOLID), dynamic game state tracking (Location, Inventory, NPCs), push-to-talk mic input, and audio streaming.
 
 ---
 
 ## 🏗️ Architecture
 
-### Multi-LLM provider strategy — "never let the demo see a failure"
-Chat/JSON completions are split across **Groq** and **Gemini**, with **OpenAI** reserved for
-embeddings and image generation only (never chat):
+### Multi-LLM Provider Strategy
+Chat/JSON completions are split across **Groq** and **Gemini**, with **OpenAI** reserved for embeddings and image generation:
 
 | Provider | Model | Role | Known constraint |
 |---|---|---|---|
-| Groq | `openai/gpt-oss-120b` | Hot path — specialist agents, most one-shot agents | Free tier caps at **10 requests/minute** |
-| Gemini | `gemini-flash-latest` | Long-context reasoning (Consistency, Adaptation) & fallback | Free tier caps at **20 requests/day/model** |
-| OpenAI | `text-embedding-3-small`, `gpt-image-1` | Embeddings for vector search, cover art | No daily cap; not used for chat |
-
-Every client wrapper ([src/lib/llm/groq.ts](src/lib/llm/groq.ts), [gemini.ts](src/lib/llm/gemini.ts), [openai.ts](src/lib/llm/openai.ts)) retries transient 429/5xx errors with backoff. On top of that, [src/lib/llm/resilient.ts](src/lib/llm/resilient.ts) provides:
-
-- **`resilientJSON`** — tries Groq, falls through to Gemini (or vice versa via a `preferred` flag) before throwing.
-- **`resilientJSONOrDefault`** — same, but returns a caller-supplied, plausible fallback (a heuristic mood summary, an objectively-computed marketing clip pick, a deterministic "Editor's Picks" festival from the real catalog, ...) instead of ever throwing — so a rate-limited provider degrades a feature's *quality*, not its *availability*, mid-demo.
-
-Two agents (`bible-builder.ts`, `adapter.ts`) deliberately still throw on total failure — there's no sane non-LLM fallback for whole-series generation or bible-fact extraction, and inventing placeholder story content would be worse than a clean error.
-
-The one deliberate exception to "fail open" is the **safety gate** ([src/lib/safety/moderation.ts](src/lib/safety/moderation.ts)): it fails *closed* if both providers are unreachable, refusing rather than silently letting content through.
-
-### Dual-mode: local heuristic vs. Databricks
-Three subsystems transparently switch to a Databricks-hosted model/index when its env vars are
-present, and fall back to a local implementation otherwise — the app runs fully standalone with
-zero Databricks configuration:
-
-| Subsystem | Local implementation | Databricks implementation | Switch |
-|---|---|---|---|
-| Retention scoring | [retention/local.ts](src/lib/retention/local.ts) | [retention/databricks.ts](src/lib/retention/databricks.ts) | `DATABRICKS_RETENTION_MODEL_ENDPOINT` |
-| Audience simulation | [simulator/local.ts](src/lib/simulator/local.ts) | [simulator/databricks.ts](src/lib/simulator/databricks.ts) | `DATABRICKS_AUDIENCE_SIM_ENDPOINT` |
-| Story Bible retrieval | [vector/local-search.ts](src/lib/vector/local-search.ts) | [vector/databricks.ts](src/lib/vector/databricks.ts) | `DATABRICKS_VECTOR_SEARCH_ENDPOINT` |
-
-### Dual TTS backends with automatic fallback
-Selectable per render (Studio dropdown, or `{ provider: "groq" | "elevenlabs" | "auto" }` on `POST /api/episodes/[id]/render-audio`):
-
-- **Groq Orpheus** (`canopylabs/orpheus-v1-english`) — only accepts `response_format: "wav"`; per-beat WAV clips are merged with `concatWav` ([src/lib/audio/wav.ts](src/lib/audio/wav.ts)) rather than `Buffer.concat`, which would embed extra RIFF headers and corrupt playback past the first beat. Free tier caps at 10 RPM.
-- **ElevenLabs** ([src/lib/llm/elevenlabs.ts](src/lib/llm/elevenlabs.ts)) — works with a paid key; a `text_to_speech`-only scoped key (no `voices_read`) is handled by falling back to a curated, verified voice pool. Beats render through bounded-concurrency + 429-retry/backoff (`renderBeatsWithElevenLabs`), never `Promise.all`, since plans cap concurrent requests. MP3 clips concatenate directly (no muxer needed).
-- `Character.preferredVoice` encodes the provider inline (`"troy"` = Groq, `"elevenlabs:21m00Tcm4TlvDq8ikWAM"` = ElevenLabs — see [src/lib/voice-pref.ts](src/lib/voice-pref.ts)); a preference only applies on a render using its matching provider and is silently skipped (auto-cast instead) otherwise.
-
-### Semantic retrieval (embeddings)
-Three embedding tables back three different features, all using OpenAI `text-embedding-3-small`
-(1536 dims, stored as JSON since SQLite has no native vector column):
-
-- `BibleEmbedding` — Story Bible entries, for Consistency-agent retrieval.
-- `BeatEmbedding` — beats, for the Historian's Plot Hole Hunter clustering.
-- `EpisodeMoodProfile` — episode "feel" summaries, for Mood-First Search.
+| Groq | `openai/gpt-oss-120b` | Hot path — specialist agents, most one-shot agents | Free tier: **10 RPM** |
+| Gemini | `gemini-flash-latest` | Long-context reasoning (Consistency, Adaptation) & fallback | Free tier: **20 requests/day** |
+| OpenAI | `text-embedding-3-small`, `gpt-image-1` | Embeddings for vector search, cover art | No daily cap |
 
 ---
 
-## 🚀 Tech Stack
+## 🗺️ Page Routes Summary
 
-- **Framework:** [Next.js 15.5.21](https://nextjs.org/) (App Router), React 19.1.0, TypeScript
-- **Styling:** Tailwind CSS v4, [Framer Motion](https://www.framer.com/motion/) for animation, [Lenis](https://github.com/darkroomengineering/lenis) for smooth scroll
-- **3D:** Three.js via `@react-three/fiber` + `@react-three/drei` (landing-page hero)
-- **Database / ORM:** SQLite (dev) via [Prisma 6](https://www.prisma.io/) — config in `prisma.config.ts`, not the deprecated `package.json#prisma` field
-- **LLM providers:** [Groq SDK](https://groq.com/) (`openai/gpt-oss-120b`, Orpheus TTS), [Google Generative AI](https://ai.google.dev/) (`gemini-flash-latest`), OpenAI (`text-embedding-3-small`, `gpt-image-1`) via raw `fetch`
-- **TTS:** Groq Orpheus (primary) + ElevenLabs (secondary/fallback, paid-tier)
-- **Realtime:** `socket.io-client` (Audioverse game client — pairs with the standalone Express/Socket.IO/OpenAI server at `audioverse-main/server`, present on disk but untracked in this repo's git)
-- **Validation:** Zod
-
----
-
-## 📂 Project Structure
-
-```text
-├── prisma/
-│   ├── schema.prisma        # 20 models: Series/Episode/Beat pipeline, Story Bible,
-│   │                        # audio renders, embeddings, Listener Hub, Festivals
-│   └── seed.ts               # Dummy data generation script
-├── src/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── beats/[id]/          # direct, genre, writers-room rewrites + PATCH
-│   │   │   ├── copilot/             # continuity, hooks, voice + voice/render
-│   │   │   ├── episodes/[id]/       # analyze, build-bible, rewrite, audience-mirror,
-│   │   │   │                        # soundscape, marketing, audience-sim, cross-media, render-audio
-│   │   │   ├── series/              # adapt (+ safety gate), [id]/casting
-│   │   │   ├── listen/              # mood-search, sessions, why, concierge, festivals
-│   │   │   └── audioverse/game/     # standalone Hinglish text-adventure endpoint
-│   │   ├── dashboard/                # Studio entry point (series list + Pilot Factory)
-│   │   ├── series/[seriesId]/        # series detail, casting, episode Studio
-│   │   ├── listen/                   # Listener Hub
-│   │   ├── voice-room/               # demo-only mock UI (see Experimental section)
-│   │   ├── pulse-and-page/           # iframe to an external Python biometric app
-│   │   ├── audioverse/               # multiplayer AI RPG client (server: audioverse-main/, untracked)
-│   │   └── privacy/ terms/ contact/  # static pages
-│   ├── components/
-│   │   ├── studio/                   # Studio workspace panels (heatmap, composer, director, ...)
-│   │   ├── listen/                   # Listener Hub UI (episode cards, player)
-│   │   ├── audio-prototype/          # Score Pad chime instrument UI
-│   │   └── ui/                       # Design-system primitives (GlassCard, Reveal, ...)
-│   └── lib/
-│       ├── agents/                   # 22 agent modules — see Feature Tour above
-│       ├── llm/                      # groq.ts, gemini.ts, openai.ts, resilient.ts, elevenlabs.ts
-│       ├── safety/                   # moderation.ts — content safety gate
-│       ├── retention/  simulator/  vector/   # each: local + Databricks + shared index
-│       └── audio/                     # wav.ts (RIFF concat fix), chimesAudioEngine.ts
-```
+| Route | Purpose | Backend Requirements |
+|---|---|---|
+| `/` | Landing page — Three.js hero, feature overview | Built-in |
+| `/dashboard` | Studio entry point — series list + One-Click Pilot Factory | Built-in |
+| `/series/[seriesId]` | Series detail — episodes, Story Bible summary | Built-in |
+| `/series/[seriesId]/casting` | Voice Casting Studio | Built-in |
+| `/series/[seriesId]/episodes/[episodeId]` | Episode production Studio (main workspace) | Built-in |
+| `/listen` | Listener Hub — mood search, concierge, festivals | Built-in |
+| `/pulse-and-page` | Biometric audiobooks engine | `cd pulse-and-page-main && uvicorn app:app --reload` (Port 8000) |
+| `/audioverse` | AI Dungeon Master Audio RPG Game | `cd audioverse-main/server && node index.js` (Port 3001) |
+| `/voice-room` | Real-time AI Voice Room experience | Built-in |
 
 ---
 
-## 🗺️ Pages
+## 🛠️ Installation & Setup
 
-| Route | Purpose |
-|---|---|
-| `/` | Landing page — Three.js hero, feature grid, links to every surface below |
-| `/dashboard` | Studio entry point — series list + One-Click Pilot Factory |
-| `/series/[seriesId]` | Series detail — episodes, Story Bible summary |
-| `/series/[seriesId]/casting` | Voice Casting Studio |
-| `/series/[seriesId]/episodes/[episodeId]` | Episode production Studio (the main workspace) |
-| `/listen` | Listener Hub — mood search, concierge, festivals, catalog |
-| `/voice-room` | **Demo-only mock** — simulated voice room + fabricated dashboard stats, not wired to real APIs |
-| `/pulse-and-page` | Iframe wrapper for a separate biometric-audiobooks Python backend (`localhost:8000`) |
-| `/audioverse` | Multiplayer AI audio-RPG lobby/game client (needs an external Socket.IO server on `localhost:3001`) |
-| `/privacy` `/terms` `/contact` | Static pages (`/contact`'s form is `preventDefault`-only, not wired to a backend) |
-
----
-
-## 🛠️ Getting Started
-
-### Prerequisites
-- Node.js v18+
-- A Groq API key at minimum (specialist agents + Orpheus TTS); Gemini and OpenAI keys unlock the rest
-
-### 1. Install
+### 1. Install Dependencies
 ```bash
-git clone <repository-url>
-cd "pocket fm hackathon"
+git clone https://github.com/rohanjain1648/pocket.git
+cd pocket
 npm install
 ```
 
-### 2. Configure environment
-```bash
-cp .env.example .env
+### 2. Configure Environment (.env)
+Create `.env` in the root folder:
+```env
+GROQ_API_KEY=your_groq_key
+GEMINI_API_KEY=your_gemini_key
+OPENAI_API_KEY=your_openai_key
+ELEVENLABS_API_KEY=your_elevenlabs_key
+DATABASE_URL="file:./dev.db"
 ```
 
-| Variable | Required for | Notes |
-|---|---|---|
-| `GROQ_API_KEY` | Specialist agents, most one-shot agents, Orpheus TTS | Free tier: 10 RPM |
-| `GEMINI_API_KEY` | Consistency/Adaptation long-context calls, Groq fallback | Free tier: 20 requests/day/model |
-| `OPENAI_API_KEY` | Embeddings (Mood Search, Plot Hole Hunter, Bible retrieval), cover art | No daily cap |
-| `DATABASE_URL` | Required | Defaults to local SQLite (`file:./dev.db`) |
-| `ELEVENLABS_API_KEY` | Optional secondary TTS | Needs a paid plan for library voices |
-| `ELEVENLABS_CONCURRENCY` | Optional | Keep at least 1 below your plan's concurrent-request cap |
-| `DATABRICKS_*` | Optional sponsor-bonus integration | App runs fully local without these |
-
-### 3. Database setup & seeding
+### 3. Database Setup & Seed
 ```bash
-npm run db:reset      # prisma db push --force-reset && seed
-# or separately:
-npm run db:push
-npm run db:seed
+npm run db:reset
 ```
 
-### 4. Run
+### 4. Run Applications
+
+**Terminal 1 — Main Showrunner Next.js App:**
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000). Start at `/dashboard` (production side) or `/listen` (consumer side).
 
-> **Windows/PowerShell users:** never run two `next dev` processes against the same `.next` directory — it causes ChunkLoadErrors. Check first: `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object {$_.CommandLine -match "next"}`
+**Terminal 2 — Pulse & Page Backend:**
+```bash
+cd pulse-and-page-main
+pip install -r requirements.txt
+uvicorn app:app --reload
+```
 
-### 5. Verify
-There's no automated test suite; verify changes with:
+**Terminal 3 — Audioverse Socket Server:**
+```bash
+cd audioverse-main/server
+npm install
+node index.js
+```
+
+---
+
+## 🧪 Verification
+Verify code health with:
 ```bash
 npx tsc --noEmit
-```
-Note: `/contact` currently fails the production prerender (a client form handler in a Server Component) — a known, pre-existing issue unrelated to most feature work.
-
----
-
-## 🗄️ Database Management
-```bash
-npm run db:studio     # Prisma Studio — inspect the local SQLite database
-```
-
----
-
-## 🧪 Experimental / standalone features
-These exist in the repo but need infrastructure or context beyond `npm run dev`:
-
-- **`/voice-room`** — entirely client-side mock data (simulated transcript, fabricated dashboard stats); not wired to any real endpoint. Useful as a demo visual, not a working feature.
-- **`/pulse-and-page`** — expects a separate Python backend on `localhost:8000`; shows setup instructions if it's not running.
-- **`/audioverse`** — a multiplayer AI RPG client expecting a Socket.IO server on `localhost:3001` for room/session state. That server exists in this working directory at **`audioverse-main/`** (a separate Express + Socket.IO + OpenAI backend, `audioverse-main/server`, paired with its own standalone Vite/React client in `audioverse-main/client`) — but it is **not tracked in this repo's git** (confirmed via `git status --porcelain -uall`; it has no commit history here) and is not started by `npm run dev`. Run it separately (`cd audioverse-main/server && npm install && npm start`) if you need real multiplayer state. The in-app `/api/audioverse/game` route is also the one place in the codebase that calls LLM/TTS providers directly via raw `fetch` rather than through `lib/agents`/`lib/llm`.
-
-## 🤝 Contributing
-```bash
-npx tsc --noEmit   # type-check before submitting a PR
-npm run lint       # currently requires an ESLint flat config to run standalone; not set up in this repo
 ```
