@@ -112,29 +112,18 @@ export default function LandingPage() {
 
           <div className="flex items-center gap-3">
             <Link
-              href="/voice-room"
-              className="hidden sm:flex items-center gap-2 rounded-full border border-[var(--color-violet)]/30 bg-[var(--color-violet)]/10 px-4 py-2 text-xs tracking-wide text-[var(--color-violet)] hover:bg-[var(--color-violet)]/20 transition-all duration-300"
+              href="/listen"
+              className="flex items-center gap-2 rounded-full border border-[var(--color-glass-border)] bg-[var(--color-glass)] px-5 py-2 text-xs font-semibold tracking-wider text-[var(--color-ink-dim)] backdrop-blur-md transition-all hover:border-[var(--color-accent)]/40 hover:text-[var(--color-accent)]"
             >
-              <Radio size={14} />
-              Voice Room
+              <Headphones size={14} />
+              LISTEN HUB
             </Link>
             <Link
-              href="/pulse-and-page"
-              className="hidden sm:flex items-center gap-2 rounded-full border border-[var(--color-cyan)]/30 bg-[var(--color-cyan)]/10 px-4 py-2 text-xs tracking-wide text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]/20 transition-all duration-300"
+              href="/dashboard"
+              className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-violet)] px-5 py-2 text-xs font-bold tracking-wider text-black transition-all hover:shadow-[0_0_20px_var(--color-accent-glow)]"
             >
-              <Heart size={14} />
-              Pulse & Page
+              ENTER STUDIO →
             </Link>
-            <Link
-              href="/audioverse"
-              className="hidden sm:flex items-center gap-2 rounded-full border border-[var(--color-accent)]/30 bg-[var(--color-accent)]/10 px-4 py-2 text-xs tracking-wide text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-all duration-300"
-            >
-              <Swords size={14} />
-              Audioverse RPG
-            </Link>
-            <button className="flex h-9 w-9 items-center justify-center rounded-full glass-card !p-0 text-[var(--color-ink-dim)] hover:text-[var(--color-accent)] transition-colors">
-              <Settings size={16} />
-            </button>
           </div>
         </motion.header>
 

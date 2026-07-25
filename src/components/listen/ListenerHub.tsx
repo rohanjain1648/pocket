@@ -128,19 +128,25 @@ export function ListenerHub({
           <div className="flex items-center gap-3">
             <a
               href="/dashboard"
-              className="rounded-full border border-[var(--color-glass-border)] bg-[var(--color-glass)] px-5 py-2 text-sm font-semibold text-[var(--color-ink-dim)] backdrop-blur-md transition-all hover:border-[var(--color-accent)]/40 hover:text-[var(--color-accent)]"
+              className="rounded-full border border-[var(--color-glass-border)] bg-[var(--color-glass)] px-4 py-2 text-sm font-semibold text-[var(--color-ink-dim)] backdrop-blur-md transition-all hover:border-[var(--color-accent)]/40 hover:text-[var(--color-accent)]"
             >
               Showrunner Studio →
             </a>
             <a
+              href="/voice-room"
+              className="rounded-full border border-[var(--color-violet)]/30 bg-[var(--color-violet)]/10 px-4 py-2 text-sm font-semibold text-[var(--color-violet)] backdrop-blur-md transition-all hover:bg-[var(--color-violet)]/20"
+            >
+              🎙️ Voice Room
+            </a>
+            <a
               href="/pulse-and-page"
-              className="rounded-full border border-[var(--color-cyan)]/30 bg-[var(--color-cyan)]/10 px-5 py-2 text-sm font-semibold text-[var(--color-cyan)] backdrop-blur-md transition-all hover:bg-[var(--color-cyan)]/20"
+              className="rounded-full border border-[var(--color-cyan)]/30 bg-[var(--color-cyan)]/10 px-4 py-2 text-sm font-semibold text-[var(--color-cyan)] backdrop-blur-md transition-all hover:bg-[var(--color-cyan)]/20"
             >
               💓 Pulse & Page
             </a>
             <a
               href="/audioverse"
-              className="rounded-full border border-[var(--color-violet)]/30 bg-[var(--color-violet)]/10 px-5 py-2 text-sm font-semibold text-[var(--color-violet)] backdrop-blur-md transition-all hover:bg-[var(--color-violet)]/20"
+              className="rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-400 backdrop-blur-md transition-all hover:bg-amber-500/20"
             >
               ⚔️ Audioverse RPG
             </a>
