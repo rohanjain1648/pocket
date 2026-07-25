@@ -1,0 +1,49 @@
+# dependencies
+node_modules/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# next.js / build output
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# testing
+/coverage
+
+# env
+.env
+.env*.local
+
+# db
+*.db
+*.db-journal
+/prisma/dev.db*
+
+# vector store cache
+/data/vector-cache/
+
+# audio renders (large binary output — Orpheus emits wav)
+/public/audio/*.wav
+/public/audio/*.mp3
+!/public/audio/.gitkeep
+
+# vercel
+.vercel
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.playwright-mcp/
