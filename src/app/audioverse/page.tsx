@@ -9,9 +9,18 @@ import {
   RefreshCw, Send, Radio, Sparkles, CheckCircle2, AlertCircle,
 } from "lucide-react";
 
-// Connect to the Node.js backend on Port 3001
-const BACKEND_URL = "http://localhost:3001";
-const socket: Socket = io(BACKEND_URL, { autoConnect: true });
+const LOCAL_BACKEND_URL = "http://localhost:3001";
+const PROD_BACKEND_URL = "https://audioverse-socket-server.onrender.com";
+
+const getBackendUrl = () => {
+  if (typeof window !== "undefined") {
+    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    return process.env.NEXT_PUBLIC_AUDIOVERSE_URL || (isLocal ? LOCAL_BACKEND_URL : PROD_BACKEND_URL);
+  }
+  return PROD_BACKEND_URL;
+};
+
+const socket: Socket = io(getBackendUrl(), { autoConnect: true });
 
 export default function AudioversePage() {
   const [currentRoom, setCurrentRoom] = useState<string | null>(null);

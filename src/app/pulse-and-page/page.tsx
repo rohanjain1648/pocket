@@ -6,9 +6,11 @@ import { motion } from "framer-motion";
 import { GradientText } from "@/components/ui/GradientText";
 import { ArrowLeft, Heart, RefreshCw } from "lucide-react";
 
-const PULSE_URL = "http://localhost:8000";
+const LOCAL_PULSE_URL = "http://localhost:8000";
+const PROD_PULSE_URL = "https://pulse-and-page-backend.onrender.com";
 
 export default function PulseAndPagePage() {
+  const [pulseUrl, setPulseUrl] = useState<string>(PROD_PULSE_URL);
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(true);
 
@@ -18,16 +20,34 @@ export default function PulseAndPagePage() {
 
   async function checkBackend() {
     setChecking(true);
+    // 1. Try local dev server first
     try {
-      const res = await fetch(`${PULSE_URL}/api/categories`, {
-        signal: AbortSignal.timeout(3000),
+      const res = await fetch(`${LOCAL_PULSE_URL}/api/categories`, {
+        signal: AbortSignal.timeout(1500),
       });
-      setBackendOnline(res.ok);
-    } catch {
-      setBackendOnline(false);
-    } finally {
-      setChecking(false);
-    }
+      if (res.ok) {
+        setPulseUrl(LOCAL_PULSE_URL);
+        setBackendOnline(true);
+        setChecking(false);
+        return;
+      }
+    } catch {}
+
+    // 2. Fall back to Render production backend
+    try {
+      const res = await fetch(`${PROD_PULSE_URL}/api/categories`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        setPulseUrl(PROD_PULSE_URL);
+        setBackendOnline(true);
+        setChecking(false);
+        return;
+      }
+    } catch {}
+
+    setBackendOnline(false);
+    setChecking(false);
   }
 
   return (
@@ -69,7 +89,7 @@ export default function PulseAndPagePage() {
       {/* Content */}
       {backendOnline ? (
         <iframe
-          src={PULSE_URL}
+          src={pulseUrl}
           className="flex-1 w-full border-0"
           style={{ minHeight: "calc(100vh - 57px)" }}
           allow="autoplay; microphone"
