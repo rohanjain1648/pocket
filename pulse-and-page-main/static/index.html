@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pulse &amp; Page - Biometric Audiobooks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#080a14;--panel:#0f1220;--card:#161a2c;--line:#1e2340;--ink:#eaedf5;--dim:#7d859e;--state:#3b82f6;--glow:rgba(59,130,246,.25)}*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 50% -10%,var(--glow),transparent 50%),var(--bg);color:var(--ink);font:16px Inter,sans-serif;padding:24px 16px 64px}
+main{max-width:900px;margin:auto}
+.eyebrow,.mono{font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.1em;font-size:12px;color:var(--dim)}
+h1{font:600 clamp(28px,4.5vw,40px) Fraunces,serif;text-align:center;margin:6px 0 20px;line-height:1.2}
+h1 em{font-style:normal;color:var(--state)}
+.tabs{display:flex;gap:8px;margin-bottom:20px;border-bottom:1px solid var(--line);justify-content:center}
+.tab{border:0;background:none;color:var(--dim);padding:10px 16px;font-size:14px;font-weight:500;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s}
+.tab.active{color:var(--ink);border-color:var(--state)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:16px}
+.pulse{text-align:center;margin:0 0 16px}
+.bpm{font:500 50px 'IBM Plex Mono',monospace;line-height:1}
+.state{color:var(--state);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.08em;font-size:12px}
+.assessment{border-left:3px solid var(--state);padding:12px 14px;background:rgba(255,255,255,.025);border-radius:0 8px 8px 0;margin-top:16px}
+.assessment strong{font:600 20px Fraunces,serif;display:block}
+.subtle{color:var(--dim);line-height:1.5}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;margin-top:16px}
+.metric label{display:flex;justify-content:space-between;color:var(--dim);font-size:12px;margin-bottom:6px}
+.metric output{font-family:'IBM Plex Mono',monospace;color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--state)}
+.toggle{display:flex;align-items:center;gap:9px;color:var(--dim);margin-top:16px}
+.toggle input{accent-color:var(--state);width:16px;height:16px}
+.action{width:100%;border:0;border-radius:8px;background:var(--state);color:#17130e;padding:12px;margin-top:16px;font-weight:600;font-size:14px;cursor:pointer;transition:opacity .2s}
+.action:disabled{opacity:.5}
+.error{color:#ff8150;min-height:18px;margin:10px 0 0}
+
+/* Live mood strip */
+.mood-strip{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:0 0 14px}
+.mood-chip{border:1px solid var(--line);background:var(--panel);color:var(--dim);border-radius:20px;padding:5px 12px;font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.06em;transition:all .25s}
+.mood-chip.on{background:var(--state);border-color:var(--state);color:#14110e;font-weight:600}
+.meters{margin-top:14px;display:grid;gap:10px}
+.meter-row{display:grid;grid-template-columns:96px 1fr 52px;align-items:center;gap:10px;font-size:12px;color:var(--dim)}
+.bar{position:relative;height:8px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden}
+.bar span{position:absolute;inset:0 auto 0 0;border-radius:6px;transition:width .25s ease}
+.bar .fill-stress{background:var(--state)}
+.bar .fill-recovery{background:#7c9a82}
+.tick{position:absolute;top:-3px;width:1px;height:14px;background:rgba(255,255,255,.35)}
+.meter-val{font-family:'IBM Plex Mono',monospace;color:var(--ink);text-align:right}
+.voice-line{margin-top:10px;font-size:12px;color:var(--dim)}
+.voice-line b{color:var(--state)}
+
+/* Emotion Folders UI */
+.folder-pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;justify-content:center}
+.folder-pill{background:var(--panel);border:1px solid var(--line);color:var(--dim);padding:8px 14px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:500;transition:all .2s}
+.folder-pill.active,.folder-pill:hover{background:var(--state);color:#14110e;border-color:var(--state)}
+.folder-desc{text-align:center;color:var(--dim);font-style:italic;margin-bottom:20px;font-size:13px}
+
+/* Books Grid & Card Styling */
+.books-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;margin-top:20px}
+.book-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.book-header{display:flex;gap:14px;margin-bottom:12px}
+.book-cover{width:80px;height:120px;object-fit:cover;border-radius:6px;box-shadow:0 4px 10px rgba(0,0,0,.4);background:#2d261f;flex-shrink:0}
+.book-meta{flex:1;min-width:0}
+.book-category{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;color:var(--state);letter-spacing:.08em;margin-bottom:4px;display:inline-block;padding:2px 6px;background:rgba(226,112,58,.1);border-radius:4px}
+.book-title{font:600 18px Fraunces,serif;margin:4px 0 2px;line-height:1.2;color:var(--ink)}
+.book-author{color:var(--dim);font-size:12px;margin-bottom:6px}
+.book-kind{font-size:11px;color:var(--state);font-weight:500}
+.book-desc{color:var(--dim);font-size:13px;line-height:1.45;margin-bottom:14px;flex-grow:1}
+.audio-player-container{margin-top:10px}
+audio{width:100%;margin-top:10px;height:36px;border-radius:6px}
+
+#knowledgeGraph{width:100%;height:380px;display:block}
+.edge{stroke:var(--line);stroke-width:1.5}
+.edge-label{fill:var(--dim);font:11px Inter,sans-serif}
+.node rect{fill:var(--panel);stroke:var(--state);stroke-width:1.5}
+.node text{fill:var(--ink);font:12px Inter,sans-serif;text-anchor:middle}
+</style>
+</head>
+<body><main>
+<div class="eyebrow" style="text-align:center">Biometric Audio Agent</div>
+<h1>Audiobooks tuned to your<br><em id="stateWord">emotional state</em></h1>
+
+<nav class="tabs" aria-label="Sections">
+  <button class="tab active" data-tab="simulator">Live Stress Simulator</button>
+  <button class="tab" data-tab="folders">Emotion Folders</button>
+  <button class="tab" data-tab="knowledge">Knowledge Graph</button>
+</nav>
+
+<!-- Tab 1: Live Simulator & Recommendations -->
+<section id="simulator" class="tab-panel active">
+  <div class="pulse">
+    <div id="bpm" class="bpm">70</div>
+    <div class="mono">BPM · <span id="state" class="state">assessing</span></div>
+  </div>
+  <div class="mood-strip" id="moodStrip">
+    <span class="mood-chip" data-state="high_stress">High stress</span>
+    <span class="mood-chip" data-state="elevated">Elevated</span>
+    <span class="mood-chip" data-state="normal">Normal</span>
+    <span class="mood-chip" data-state="recovery">Recovery</span>
+    <span class="mood-chip" data-state="active">Active</span>
+  </div>
+  <div class="panel">
+    <div class="subtle">Adjust biometric metrics to simulate stress and trigger personalized book recommendations:</div>
+    <div class="metrics">
+      <div class="metric"><label>Heart rate <output for="heart_rate"></output></label><input id="heart_rate" type="range" min="40" max="160" value="70"></div>
+      <div class="metric"><label>HRV (RMSSD) <output for="hrv"></output></label><input id="hrv" type="range" min="5" max="120" value="45"></div>
+      <div class="metric"><label>Blood oxygen <output for="spo2"></output></label><input id="spo2" type="range" min="85" max="100" value="98"></div>
+      <div class="metric"><label>Breathing rate <output for="respiratory_rate"></output></label><input id="respiratory_rate" type="range" min="6" max="30" value="14"></div>
+      <div class="metric"><label>Steps today <output for="steps"></output></label><input id="steps" type="range" min="0" max="20000" step="100" value="1200"></div>
+      <div class="metric"><label>Cadence <output for="cadence"></output></label><input id="cadence" type="range" min="0" max="180" value="0"></div>
+      <div class="metric"><label>Sleep last night <output for="sleep_minutes"></output></label><input id="sleep_minutes" type="range" min="0" max="720" step="15" value="450"></div>
+      <div class="metric"><label>Recovery score <output for="recovery_score"></output></label><input id="recovery_score" type="range" min="0" max="100" value="70"></div>
+    </div>
+    <label class="toggle"><input id="is_active" type="checkbox"> Currently walking or exercising</label>
+    <div class="meters">
+      <div class="meter-row"><span>Stress index</span>
+        <div class="bar" id="stressBar"><span class="fill-stress" style="width:0%"></span></div>
+        <span class="meter-val" id="stressVal">0</span></div>
+      <div class="meter-row"><span>Recovery index</span>
+        <div class="bar" id="recoveryBar"><span class="fill-recovery" style="width:0%"></span></div>
+        <span class="meter-val" id="recoveryVal">0</span></div>
+    </div>
+    <div id="assessment" class="assessment"><strong>Assessing…</strong></div>
+    <button id="recommend" class="action">Refresh Recommended Audiobooks</button>
+    <p id="error" class="error"></p>
+  </div>
+
+  <h2 style="font:600 22px Fraunces,serif;margin:24px 0 12px">Recommended Books &amp; Audio Passages</h2>
+  <div id="stories" class="books-grid"></div>
+</section>
+
+<!-- Tab 2: Emotion Folders -->
+<section id="folders" class="tab-panel">
+  <div class="folder-pills" id="folderPills">
+    <button class="folder-pill active" data-folder="high_stress">High Stress (Calm Books)</button>
+    <button class="folder-pill" data-folder="elevated">Elevated Stress (Normalizing Books)</button>
+    <button class="folder-pill" data-folder="normal">Normal (Happy Books)</button>
+    <button class="folder-pill" data-folder="active">Physically Active (Rom-Com Books)</button>
+    <button class="folder-pill" data-folder="recovery">Recovery (Laugh-out-Loud Books)</button>
+  </div>
+  <p id="folderDesc" class="folder-desc">Books that make people calm when in high stress.</p>
+  <div id="folderBooks" class="books-grid"></div>
+</section>
+
+<!-- Tab 3: Knowledge Graph -->
+<section id="knowledge" class="tab-panel">
+  <div class="panel">
+    <p class="subtle" style="margin-top:0">This graph explains how your biometric state links to voice modulation and narrative recommendations to shift your behavior.</p>
+    <svg id="knowledgeGraph" role="img" aria-label="Biometric knowledge graph"></svg>
+    <p id="graphDetail" class="subtle"></p>
+  </div>
+</section>
+</main>
+
+<script>
+const ids=['heart_rate','hrv','spo2','respiratory_rate','steps','cadence','sleep_minutes','recovery_score'];
+const stateColors={
+  high_stress:['#ef4444','stressed'],
+  elevated:['#f59e0b','wound up'],
+  normal:['#3b82f6','balanced'],
+  active:['#8b5cf6','active'],
+  recovery:['#22d3ee','recovering']
+};
+const folderDescriptions = {
+  high_stress: "High Stress Folder: Uploaded with books that make people calm to lower heart rate and restore peace.",
+  elevated: "Elevated Stress Folder: Uploaded with books that make people feel normal and grounded.",
+  normal: "Normal Baseline Folder: Uploaded with books that bring joy and make people happy.",
+  active: "Physically Active Folder: Uploaded with Rom-Com / Romantic Comedy books for high-energy momentum.",
+  recovery: "Recovery Folder: Uploaded with hilarious books that make you laugh out loud for physical recovery."
+};
+
+let catalogData = {};
+let currentAssessment = null;
+let timer = null;
+let renderedState = null;   // which mood the book grid currently shows
+let thresholdsDrawn = false;
+
+function metrics(){
+  const m={source:'manual',is_active:document.getElementById('is_active').checked};
+  ids.forEach(id=>m[id]=Number(document.getElementById(id).value));
+  return m;
+}
+
+function syncOutputs(){
+  ids.forEach(id=>{
+    const unit={heart_rate:' bpm',hrv:' ms',spo2:'%',respiratory_rate:' /min',steps:'',cadence:' steps/min',sleep_minutes:' min',recovery_score:' /100'}[id];
+    document.querySelector(`output[for="${id}"]`).textContent=document.getElementById(id).value+unit;
+  });
+}
+
+function drawThresholds(data){
+  if(thresholdsDrawn||!data.thresholds)return;
+  thresholdsDrawn=true;
+  const sb=document.getElementById('stressBar');
+  [data.thresholds.elevated,data.thresholds.high_stress].forEach(v=>{
+    const t=document.createElement('i');t.className='tick';t.style.left=v+'%';sb.appendChild(t);
+  });
+  const rb=document.getElementById('recoveryBar');
+  const t=document.createElement('i');t.className='tick';t.style.left=data.thresholds.recovery+'%';rb.appendChild(t);
+}
+
+function setState(data){
+  currentAssessment=data;
+  const [color,word]=stateColors[data.state]||stateColors.normal;
+  document.documentElement.style.setProperty('--state',color);
+  document.documentElement.style.setProperty('--glow',color+'38');
+  document.getElementById('bpm').textContent=data.heart_rate;
+  document.getElementById('state').textContent=data.state_label;
+  document.getElementById('stateWord').textContent=word;
+
+  document.querySelectorAll('.mood-chip').forEach(c=>c.classList.toggle('on',c.dataset.state===data.state));
+
+  drawThresholds(data);
+  const si=data.stress_index??0, ri=data.recovery_index??0;
+  document.querySelector('#stressBar span').style.width=Math.min(100,si)+'%';
+  document.querySelector('#recoveryBar span').style.width=Math.min(100,ri)+'%';
+  document.getElementById('stressVal').textContent=si;
+  document.getElementById('recoveryVal').textContent=ri;
+
+  const v=data.narration_voice;
+  document.getElementById('assessment').innerHTML=`
+    <strong>${data.state_label}</strong>
+    <span class="subtle">${data.reasons.join(' ')}</span>
+    <p class="subtle" style="margin:8px 0 0;color:var(--ink)"><b>Voice Profile: ${data.voice_profile.label}.</b> ${data.voice_profile.processing}.</p>
+    ${v?`<p class="voice-line">Narrated by <b>${v.name}</b> — ${v.description} (speed ${v.settings.speed}×).</p>`:''}
+  `;
+  renderGraph(data.graph);
+
+  // The recommendation grid follows the mood live — no button press needed.
+  if(data.stories && data.state!==renderedState){
+    renderedState=data.state;
+    renderBookGrid(data.stories, document.getElementById('stories'), data.state, data.voice_profile);
+  }
+}
+
+async function assess(){
+  syncOutputs();
+  try{
+    const res=await fetch('/api/assess',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(metrics())});
+    if(!res.ok)throw new Error((await res.json()).detail||'Could not assess');
+    setState(await res.json());
+    document.getElementById('error').textContent='';
+  }catch(e){
+    document.getElementById('error').textContent=e.message;
+  }
+}
+
+function queueAssessment(){
+  clearTimeout(timer);
+  timer=setTimeout(assess,180);
+}
+
+async function recommend(){
+  const btn=document.getElementById('recommend');
+  btn.disabled=true;
+  btn.textContent='Matching targeted audiobooks…';
+  try{
+    const res=await fetch('/api/suggest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(metrics())});
+    if(!res.ok)throw new Error((await res.json()).detail||'Could not load listening options');
+    const data=await res.json();
+    renderedState=null;
+    setState(data);
+  }catch(e){
+    document.getElementById('error').textContent=e.message;
+  }finally{
+    btn.disabled=false;
+    btn.textContent='Refresh Recommended Audiobooks';
+  }
+}
+
+let voiceMap={};
+function voiceName(state){return (voiceMap[state]||{}).name||'';}
+
+async function loadVoices(){
+  try{
+    const r=await fetch('/api/voices');
+    if(r.ok){const d=await r.json();voiceMap=d.voices||{};}
+  }catch(e){/* voice labels are cosmetic */}
+}
+
+function renderBookGrid(books, containerHost, state, voiceProfile){
+  containerHost.innerHTML='';
+  books.forEach(book=>{
+    const card=document.createElement('article');
+    card.className='book-card';
+    card.innerHTML=`
+      <div>
+        <div class="book-header">
+          <img class="book-cover" src="${book.cover}" alt="${book.title} cover" onerror="this.src='https://via.placeholder.com/80x120?text=Book'">
+          <div class="book-meta">
+            <span class="book-category">${book.category || 'Audiobook'}</span>
+            <div class="book-title">${book.title}</div>
+            <div class="book-author">by ${book.author}</div>
+            <div class="book-kind">${book.kind}</div>
+          </div>
+        </div>
+        <p class="book-desc">${book.description}</p>
+      </div>
+      <div>
+        <button class="action listen-btn">Generate ~2 min Audio${voiceName(state)?` · voice: ${voiceName(state)}`:''}</button>
+        <div class="audio-player-container">
+          <audio controls style="display:none"></audio>
+        </div>
+        <p class="error" style="font-size:12px;margin:4px 0 0"></p>
+      </div>
+    `;
+
+    const btn=card.querySelector('.listen-btn');
+    const audio=card.querySelector('audio');
+    const err=card.querySelector('.error');
+
+    btn.onclick=async()=>{
+      btn.disabled=true;
+      btn.textContent='Synthesizing behavior-tuning audio…';
+      err.textContent='';
+      try{
+        const targetState = state || 'normal';
+        const r=await fetch('/api/narrate',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({state: targetState, text: book.text})
+        });
+        if(!r.ok)throw new Error((await r.json()).detail||'Audio generation failed');
+        const respData = await r.json();
+        audio.src = respData.audio_url;
+        audio.style.display='block';
+        try{await audio.play();}catch(_){/* autoplay may be blocked; controls are visible */}
+        const vn=(respData.voice&&respData.voice.name)||voiceName(targetState);
+        btn.textContent=vn?`Play again · ${vn}`:'Play Generated Audio Again';
+        btn.disabled=false;
+      }catch(e){
+        err.textContent=e.message;
+        btn.textContent='Retry Audio Generation';
+        btn.disabled=false;
+      }
+    };
+    containerHost.appendChild(card);
+  });
+}
+
+async function loadCategories(){
+  try{
+    const res=await fetch('/api/categories');
+    if(res.ok){
+      catalogData = await res.json();
+      renderFolder('high_stress');
+    }
+  }catch(e){console.error('Failed to load categories', e);}
+}
+
+function renderFolder(folderKey){
+  const books = catalogData[folderKey] || [];
+  const vn = voiceName(folderKey);
+  document.getElementById('folderDesc').textContent =
+    (folderDescriptions[folderKey] || "") + (vn ? ` Narrated by ${vn}.` : "");
+  const currentVoice = (currentAssessment && currentAssessment.voice_profile) ? currentAssessment.voice_profile : {label: "Standard Voice", processing: "Natural"};
+  renderBookGrid(books, document.getElementById('folderBooks'), folderKey, currentVoice);
+}
+
+// Folder Pills Interactivity
+document.querySelectorAll('.folder-pill').forEach(pill => {
+  pill.onclick = () => {
+    document.querySelectorAll('.folder-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    renderFolder(pill.dataset.folder);
+  };
+});
+
+// Graph rendering
+function renderGraph(graph){
+  if(!graph)return;
+  const svg=document.getElementById('knowledgeGraph'),ns='http://www.w3.org/2000/svg';
+  svg.innerHTML='';
+  const mobile=innerWidth<560;
+  const p=mobile?{signals:[200,45],state:[200,130],voice:[95,230],content:[305,230],goal:[200,340]}:{signals:[100,190],state:[295,190],voice:[500,90],content:[500,290],goal:[675,190]};
+  graph.links.forEach(link=>{
+    const a=p[link.from],b=p[link.to],line=document.createElementNS(ns,'line');
+    line.setAttribute('x1',a[0]);line.setAttribute('y1',a[1]);
+    line.setAttribute('x2',b[0]);line.setAttribute('y2',b[1]);
+    line.setAttribute('class','edge');
+    svg.appendChild(line);
+  });
+  graph.nodes.forEach(node=>{
+    const [x,y]=p[node.id],g=document.createElementNS(ns,'g');
+    g.setAttribute('class','node');
+    const r=document.createElementNS(ns,'rect');
+    r.setAttribute('x',x-80);r.setAttribute('y',y-24);
+    r.setAttribute('width',160);r.setAttribute('height',48);r.setAttribute('rx',8);
+    const t=document.createElementNS(ns,'text');
+    t.setAttribute('x',x);t.setAttribute('y',y+4);
+    const words=node.label.split(' ');
+    t.textContent=words.length>4?words.slice(0,4).join(' ')+'…':node.label;
+    g.append(r,t);
+    svg.appendChild(g);
+  });
+  document.getElementById('graphDetail').textContent=graph.links.map(x=>x.label).join(' · ');
+}
+
+// Tab Switching
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+  };
+});
+
+ids.forEach(id=>document.getElementById(id).addEventListener('input',queueAssessment));
+document.getElementById('is_active').addEventListener('change',queueAssessment);
+document.getElementById('recommend').onclick=recommend;
+
+syncOutputs();
+loadVoices().then(()=>{assess();loadCategories();});
+</script>
+</body>
+</html>

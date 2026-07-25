@@ -1,0 +1,10 @@
+requests
+python-dotenv
+bleak
+librosa
+soundfile
+scipy
+numpy
+fastapi
+uvicorn
+pydantic

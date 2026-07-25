@@ -1,0 +1,27 @@
+# Secrets — never commit. Real keys live here; .env.example is the template.
+.env
+.env.local
+*.pem
+
+# Virtualenvs
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Generated narration audio
+static/generated/
+output_audio/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
