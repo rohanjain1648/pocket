@@ -1,0 +1,333 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// A show / book adapted into a serialized audio drama.
+model Series {
+  id          String   @id @default(cuid())
+  title       String
+  genre       String
+  synopsis    String
+  sourceType  String // "original" | "adapted" (from novel/article via the Generate pillar)
+  sourceRef   String? // URL or public-domain title if adapted
+  createdAt   DateTime @default(now())
+
+  episodes    Episode[]
+  characters  Character[]
+  worldRules  WorldRule[]
+  timeline    TimelineEvent[]
+  relationships Relationship[]
+}
+
+model Episode {
+  id          String   @id @default(cuid())
+  seriesId    String
+  series      Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  number      Int
+  title       String
+  rawScript   String // full script text as authored/imported
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  beats       Beat[]
+  audioRenders AudioRender[]
+  marketingPlan MarketingPlan?
+  moodProfile EpisodeMoodProfile?
+  listeningSessions ListeningSession[]
+  crossMediaLinks CrossMediaLink[]
+  festivalSlots FestivalSlot[]
+
+  @@index([seriesId, number])
+}
+
+// A beat = one scene / dialogue chunk. The atomic unit of analysis.
+model Beat {
+  id          String   @id @default(cuid())
+  episodeId   String
+  episode     Episode  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  order       Int
+  text        String
+  speaker     String? // character name if primarily dialogue, null for narration
+  createdAt   DateTime @default(now())
+
+  analysis    Analysis?
+  genreVariants GenreVariant[]
+
+  @@index([episodeId, order])
+}
+
+// A genre-transformed alternative rendering of a beat. Kept alongside the
+// original rather than overwriting it, so the writer can audition a beat as
+// horror/romance/comedy/thriller/anime and still revert.
+model GenreVariant {
+  id          String   @id @default(cuid())
+  beatId      String
+  beat        Beat     @relation(fields: [beatId], references: [id], onDelete: Cascade)
+  genre       String // "horror" | "romance" | "comedy" | "thriller" | "anime"
+  text        String
+  warnings    String // JSON array of strings — plot elements that fit the target genre poorly
+  createdAt   DateTime @default(now())
+
+  @@unique([beatId, genre])
+  @@index([beatId])
+}
+
+// Multi-agent + retention-model output for a single beat.
+model Analysis {
+  id                String   @id @default(cuid())
+  beatId            String   @unique
+  beat              Beat     @relation(fields: [beatId], references: [id], onDelete: Cascade)
+
+  retentionScore    Float // 0-100, predicted probability listener continues past this beat
+  dropoffRisk       String // "low" | "medium" | "high" | "critical"
+
+  cliffhangerScore  Float
+  pacingScore       Float
+  emotionScore      Float
+  emotionLabel      String
+  dialogueScore     Float
+  readabilityScore  Float
+
+  consistencyFlags  String // JSON array of { type, message, relatedEntity } from Consistency agent
+  findings          String // JSON array of { agent, summary, severity } — human-readable diagnosis
+  suggestedFix      String? // proposed rewrite direction, filled by Editor agent on request
+
+  modelSource       String @default("local") // "local" | "databricks"
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// --- Story Bible (Pillar B: Ground) ---
+
+model Character {
+  id          String   @id @default(cuid())
+  seriesId    String
+  series      Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  name        String
+  description String
+  traits      String // JSON array of strings
+  firstAppearedEpisode Int?
+  preferredVoice String? // Orpheus voice id, set via Voice Casting Studio
+  createdAt   DateTime @default(now())
+
+  @@index([seriesId])
+}
+
+model WorldRule {
+  id          String   @id @default(cuid())
+  seriesId    String
+  series      Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  rule        String // e.g. "Magic requires blood sacrifice", "Set in 1920s Bombay"
+  category    String // "setting" | "magic-system" | "technology" | "society" | "other"
+  createdAt   DateTime @default(now())
+
+  @@index([seriesId])
+}
+
+model TimelineEvent {
+  id          String   @id @default(cuid())
+  seriesId    String
+  series      Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  episodeNumber Int
+  description String
+  order       Int // global chronological order, may differ from episode order (flashbacks etc.)
+  createdAt   DateTime @default(now())
+
+  @@index([seriesId])
+}
+
+model Relationship {
+  id          String   @id @default(cuid())
+  seriesId    String
+  series      Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  characterA  String
+  characterB  String
+  type        String // "ally" | "rival" | "romantic" | "family" | "mentor" | ...
+  description String
+  createdAt   DateTime @default(now())
+
+  @@index([seriesId])
+}
+
+// --- Audio pipeline (Pillar C: Generate → render) ---
+
+model AudioRender {
+  id          String   @id @default(cuid())
+  episodeId   String
+  episode     Episode  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  status      String // "pending" | "rendering" | "ready" | "failed"
+  audioUrl    String? // path under /public/audio or external URL
+  voiceMap    String // JSON: { [speakerName]: voiceId }
+  provider    String @default("local") // "groq" | "elevenlabs" | "local"
+  durationSec Float?
+  createdAt   DateTime @default(now())
+
+  @@index([episodeId])
+}
+
+// --- Semantic retrieval (Plot Hole Hunter at scale, Mood-First Search) ---
+
+// Persisted embedding for one Story Bible entry. Without this, every
+// consistency check re-embeds the whole bible; with it, retrieval is a
+// single query embedding plus in-process cosine ranking.
+// NOTE: SQLite has no vector/array column — the vector is a JSON number[].
+model BibleEmbedding {
+  id          String   @id @default(cuid())
+  seriesId    String
+  entryType   String // "character" | "worldRule" | "timelineEvent" | "relationship"
+  entryId     String // id of the source row
+  text        String // the exact text that was embedded
+  vector      String // JSON number[] (1536 dims, text-embedding-3-small)
+  model       String @default("text-embedding-3-small")
+  createdAt   DateTime @default(now())
+
+  @@unique([entryType, entryId])
+  @@index([seriesId])
+}
+
+// Beat-level embedding. Plot Hole Hunter uses these to find semantically
+// related beats ACROSS episodes — two beats that talk about the same person,
+// object or event are near-neighbours in embedding space — and then sends
+// only those small candidate clusters to the LLM. That keeps contradiction
+// detection O(clusters) instead of O(corpus), so it works on a series far
+// larger than any context window.
+model BeatEmbedding {
+  id          String   @id @default(cuid())
+  beatId      String   @unique
+  seriesId    String
+  episodeId   String
+  text        String
+  vector      String // JSON number[]
+  model       String @default("text-embedding-3-small")
+  createdAt   DateTime @default(now())
+
+  @@index([seriesId])
+}
+
+// Episode-level embedding of the story's *feel*, used by Mood-First Search
+// to match free-text moods ("rainy Sunday after heartbreak") to episodes.
+model EpisodeMoodProfile {
+  id            String   @id @default(cuid())
+  episodeId     String   @unique
+  episode       Episode  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  moodSummary   String // LLM-written sentence describing the emotional texture
+  vector        String // JSON number[] embedding of moodSummary
+  model         String @default("text-embedding-3-small")
+  energy        Float // 0-100, derived from pacing/intensity
+  tension       Float // 0-100, derived from cliffhanger scores
+  intimacy      Float // 0-100, derived from emotion/dialogue scores
+  warmth        Float // 0-100
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// --- AI Producer: marketing strategy ---
+
+model MarketingPlan {
+  id            String   @id @default(cuid())
+  episodeId     String   @unique
+  episode       Episode  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  hooks         String // JSON array of strings — social teasers
+  hashtags      String // JSON array of strings
+  clipBeatId    String? // the beat that makes the best 30s promo clip
+  clipRationale String?
+  thumbnailMood String
+  targetAudience String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// --- Listener Hub ---
+
+// Identity is hardcoded to a single demo user for the hackathon, but all
+// listening behaviour below is genuinely recorded from real playback and
+// drives real recommendations.
+model Listener {
+  id          String   @id @default(cuid())
+  handle      String   @unique
+  displayName String
+  createdAt   DateTime @default(now())
+
+  sessions    ListeningSession[]
+  recommendations RecommendationLog[]
+}
+
+model ListeningSession {
+  id          String   @id @default(cuid())
+  listenerId  String
+  listener    Listener @relation(fields: [listenerId], references: [id], onDelete: Cascade)
+  episodeId   String
+  episode     Episode  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  progress    Float    @default(0) // 0-1 fraction of the episode heard
+  completed   Boolean  @default(false)
+  startedAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([listenerId])
+  @@index([episodeId])
+}
+
+model RecommendationLog {
+  id          String   @id @default(cuid())
+  listenerId  String
+  listener    Listener @relation(fields: [listenerId], references: [id], onDelete: Cascade)
+  episodeId   String
+  surface     String // "mood-search" | "concierge" | "festival" | "cross-media"
+  reason      String // the "why you'll love this" explanation shown
+  confidence  Float
+  createdAt   DateTime @default(now())
+
+  @@index([listenerId])
+}
+
+// Real cross-media recommendations. Titles are proposed by the LLM then
+// verified/enriched against the Open Library API, so nothing here is seeded
+// placeholder data.
+model CrossMediaLink {
+  id            String   @id @default(cuid())
+  episodeId     String
+  episode       Episode  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  mediaType     String // "book" | "film" | "music" | "podcast"
+  title         String
+  creator       String
+  reason        String // the shared emotional arc, not just genre similarity
+  coverUrl      String?
+  externalUrl   String?
+  verified      Boolean  @default(false) // true when confirmed via Open Library
+  createdAt     DateTime @default(now())
+
+  @@index([episodeId])
+}
+
+// --- AI Curated Festivals ---
+
+model Festival {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  theme       String
+  description String
+  arc         String // how the running order builds emotionally
+  coverUrl    String? // generated cover art (data URI or path)
+  personalized Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  slots       FestivalSlot[]
+}
+
+model FestivalSlot {
+  id          String   @id @default(cuid())
+  festivalId  String
+  festival    Festival @relation(fields: [festivalId], references: [id], onDelete: Cascade)
+  episodeId   String
+  episode     Episode  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  order       Int
+  note        String // why this episode sits at this point in the arc
+
+  @@index([festivalId])
+}
