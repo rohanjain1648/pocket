@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getSeriesList } from "@/lib/queries";
 import { PilotFactory } from "@/components/PilotFactory";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const seriesList = await getSeriesList();
 

@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getSeriesDetail } from "@/lib/queries";
 import { BuildBibleButton } from "@/components/BuildBibleButton";
 
+export const dynamic = "force-dynamic";
+
 export default async function SeriesPage({ params }: { params: Promise<{ seriesId: string }> }) {
   const { seriesId } = await params;
   const series = await getSeriesDetail(seriesId).catch(() => null);

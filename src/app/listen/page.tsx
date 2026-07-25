@@ -3,6 +3,8 @@ import { getListenerCatalog } from "@/lib/queries";
 import { getDemoListener } from "@/lib/listener";
 import { ListenerHub } from "@/components/listen/ListenerHub";
 
+export const dynamic = "force-dynamic";
+
 export default async function ListenPage() {
   const [catalog, listener, festivals] = await Promise.all([
     getListenerCatalog(),

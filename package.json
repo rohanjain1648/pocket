@@ -5,7 +5,7 @@
   "description": "Showrunner — AI Production Copilot for serialized audio. PocketFM x Databricks hackathon.",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma db push && tsx prisma/seed.ts && next build",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
