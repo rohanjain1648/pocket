@@ -91,7 +91,6 @@ Chat/JSON completions are split across **Groq** and **Gemini**, with **OpenAI** 
 | `/listen` | Listener Hub — mood search, concierge, festivals | Built-in |
 | `/pulse-and-page` | Biometric audiobooks engine | `cd pulse-and-page-main && uvicorn app:app --reload` (Port 8000) |
 | `/audioverse` | AI Dungeon Master Audio RPG Game | `cd audioverse-main/server && node index.js` (Port 3001) |
-| `/voice-room` | Real-time AI Voice Room experience | Built-in |
 
 ---
 

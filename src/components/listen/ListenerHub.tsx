@@ -133,12 +133,6 @@ export function ListenerHub({
               Showrunner Studio →
             </a>
             <a
-              href="/voice-room"
-              className="rounded-full border border-[var(--color-violet)]/30 bg-[var(--color-violet)]/10 px-4 py-2 text-sm font-semibold text-[var(--color-violet)] backdrop-blur-md transition-all hover:bg-[var(--color-violet)]/20"
-            >
-              🎙️ Voice Room
-            </a>
-            <a
               href="/pulse-and-page"
               className="rounded-full border border-[var(--color-cyan)]/30 bg-[var(--color-cyan)]/10 px-4 py-2 text-sm font-semibold text-[var(--color-cyan)] backdrop-blur-md transition-all hover:bg-[var(--color-cyan)]/20"
             >
